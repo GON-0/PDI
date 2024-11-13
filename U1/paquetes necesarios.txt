@@ -1,0 +1,11 @@
+PIP:
+    pip install numpy
+    pip install matplotlib
+    pip install pillow
+    pip install opencv-contrib-python
+
+apt:
+    sudo apt install -y libsm6 libxext6
+    sudo apt-get install -y libxrender-dev
+    sudo apt install python3-tk
+    sudo apt-get install ffmpeg
