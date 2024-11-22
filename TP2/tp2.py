@@ -19,52 +19,87 @@ def imshow(img, new_fig=True, title=None, color_img=False, blocking=False, color
     if new_fig:        
         plt.show(block=blocking)
 
-# Cargamos la imagen
+def monedas(img, informe = False, views = False):
+    """Recibe una imagen de monedas, segmenta las mismas, calcula e informa el total
+    y cuantas monedas de cada tipo hay y devuelve una mascara de la segmentacion.
+    Se puede especificar la visualizacion del procesamiento de la imagen paso a paso"""
+    # 1 # Pasamos la imagen a escala de grises
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    # 2 # Aplicamos blur con filtro de mediana para eliminar ruido
+    gray_blur = cv2.medianBlur(gray,7)
+    # 3 # Detectamos los circulos
+    circles = cv2.HoughCircles(gray_blur,cv2.HOUGH_GRADIENT, 1, 200, param1=50, param2=50, minRadius=130, maxRadius=200)
+    # 4 # Creamos imagenes sinteticas e inicializamos contadores
+    circles = np.uint16(np.around(circles))
+    mask_monedas = np.zeros_like(gray)
+    tipos_monedas = np.zeros_like(img)
+    cant_10c = 0
+    cant_50c = 0
+    cant_1p = 0
+    # 5 # Dibujamos los circulos en 2 imagenes nuevas, la mascara (binaria) y la clasificacion (RGB)
+    for c in circles[0,:]:
+        cv2.circle(mask_monedas, (c[0],c[1]), c[2], 1, -1)
+        if c[2] > 170 and c[2] < 190: #50 centavos
+            cv2.circle(tipos_monedas, (c[0],c[1]), c[2], (255,0,0), -1)
+            cant_50c += 1
+        elif c[2] > 150 and c[2] < 170: #1 peso
+            cv2.circle(tipos_monedas, (c[0],c[1]), c[2], (0,255,0), -1)
+            cant_1p += 1  
+        elif c[2] > 120 and c[2] < 150: #10 centavos
+            cv2.circle(tipos_monedas, (c[0],c[1]), c[2], (0,0,255), -1)  
+            cant_10c += 1
+    # 6 # Escribimos referencia de colores de la clasificacion con colores
+    text50c = "50 centavos"
+    pos50c = (1000, 130)
+    color50c = (255, 0, 0)  # Rojo
+    text1p = "1 peso"
+    pos1p = (1730, 130)
+    color1p = (0, 255, 0)  # Verde
+    text10c = "10 centavos"
+    pos10c = (2200, 130)
+    color10c = (0, 0, 255)  # Azul
+    cv2.putText(tipos_monedas, text50c, pos50c, cv2.FONT_HERSHEY_SIMPLEX, 3, color50c, 5)
+    cv2.putText(tipos_monedas, text1p, pos1p, cv2.FONT_HERSHEY_SIMPLEX, 3, color1p, 5)
+    cv2.putText(tipos_monedas, text10c, pos10c, cv2.FONT_HERSHEY_SIMPLEX, 3, color10c, 5)
+    # 7 # Si corresponde mostramos el informe obtenido
+    if informe:
+        print("-"*20 + "Informe" + "-"*20 + "\n")
+        print("Cantidad de monedas : ", cant_10c + cant_50c + cant_1p)
+        print("Cantidad de monedas de 10 centavos : ", cant_10c)
+        print("Cantidad de monedas de 50 centavos : ", cant_50c)
+        print("Cantidad de monedas de 1 peso : ", cant_1p)
+        print("-"*47 + "\n")
+    # 8 # Si corresponde mostramos las imagenes obtenidas en el procesamiento
+    if views:
+        ax1 = plt.subplot(221); imshow(img, new_fig=False, title="Imagen original")
+        plt.subplot(222, sharex=ax1, sharey=ax1); imshow(gray_blur, new_fig=False, title="Imagen en escala de grises + blur")
+        plt.subplot(223, sharex=ax1, sharey=ax1); imshow(mask_monedas, new_fig=False, title="Mascara binaria monedas")
+        plt.subplot(224, sharex=ax1, sharey=ax1); imshow(tipos_monedas, new_fig=False, title="Clasificación de monedas")
+        plt.show(block=False)
+
+    # 9 # Retornamos la mascara binaria de las monedas
+    return mask_monedas
+
+def dados(img, mask_circles ,views = False):
+    """Recibe una imagen de dados, segmenta los mismos, calcula e informa la cantidad
+    y el numero de la cara superior de cada dado y devuelve una mascara de la segmentacion.
+    Se puede especificar la visualizacion del procesamiento de la imagen paso a paso"""
+    pass
+
+
+# Cargamos la imagen y la visualizamos
 img = cv2.imread('monedas.jpg')
 img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 imshow(img)
 
-# Pasamos a escala de grises
-gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-imshow(gray)
-
-# Hacemos blur con filtro de mediana para eliminar ruido
-gray_blur = cv2.medianBlur(gray,7)
-imshow(gray_blur)
-
-# Detectamos los circulos y los dibujamos en una nueva imagen binaria
-circles = cv2.HoughCircles(gray_blur,cv2.HOUGH_GRADIENT, 1, 200, param1=50, param2=50, minRadius=130, maxRadius=200)  # Circulos chicos
+monedas(img, informe = True, views = True)
 
 
 
-circles = np.uint16(np.around(circles))
-monedas_bin = np.zeros_like(gray)
-tipos_monedas = np.zeros_like(img)
-cant_10c = 0
-cant_50c = 0
-cant_1p = 0
-for c in circles[0,:]:
-    cv2.circle(monedas_bin, (c[0],c[1]), c[2], 1, -1)
-    if c[2] > 170 and c[2] < 190: #Grandes
-        cv2.circle(tipos_monedas, (c[0],c[1]), c[2], (255,0,0), -1)
-        cant_50c += 1
-    elif c[2] > 150 and c[2] < 170: #Medianas
-        cv2.circle(tipos_monedas, (c[0],c[1]), c[2], (0,255,0), -1)
-        cant_1p += 1  
-    elif c[2] > 120 and c[2] < 150: #Chicas
-        cv2.circle(tipos_monedas, (c[0],c[1]), c[2], (0,0,255), -1)  
-        cant_10c += 1
 
-print("Tenemos un total de ", cant_10c + cant_50c + cant_1p, " monedas" )
-print("Cantidad de monedas segun su tipo:")
-print("10 centavos : ", cant_10c)
-print("50 centavos : ", cant_50c)
-print("1 peso : ", cant_1p)
-imshow(img)
-imshow(tipos_monedas)
-# Visualizamos el resultado
-plt.imshow(monedas_bin, cmap="gray")
-plt.show()
+
+
+
 
 
 
