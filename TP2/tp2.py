@@ -38,19 +38,33 @@ def monedas(img, informe = False, views = False):
     cant_10c = 0
     cant_50c = 0
     cant_1p = 0
+    identificacion = img.copy()
     # 5 # Dibujamos los circulos en 2 imagenes nuevas, la mascara (binaria) y la clasificacion (RGB)
     for c in circles[0,:]:
+        # Dibujo circulo blanco en la mascara
         cv2.circle(mask_monedas, (c[0],c[1]), c[2], 1, -1)
-        if c[2] > 170 and c[2] < 190: #50 centavos
-            cv2.circle(tipos_monedas, (c[0],c[1]), c[2], (255,0,0), -1)
+        # Segun sea el radio dibujo un circulo con un color determinado
+        radio = c[2]
+        xc = c[1]
+        yc = c[0]
+        if radio > 170 and radio < 190: #50 centavos
+            cv2.circle(tipos_monedas, (yc,xc), radio, (255,0,0), -1)
             cant_50c += 1
-        elif c[2] > 150 and c[2] < 170: #1 peso
-            cv2.circle(tipos_monedas, (c[0],c[1]), c[2], (0,255,0), -1)
-            cant_1p += 1  
-        elif c[2] > 120 and c[2] < 150: #10 centavos
-            cv2.circle(tipos_monedas, (c[0],c[1]), c[2], (0,0,255), -1)  
+            text = "50 C"
+        elif radio > 150 and radio < 170: #1 peso
+            cv2.circle(tipos_monedas, (yc,xc), radio, (0,255,0), -1)
+            cant_1p += 1
+            text = "1 P"
+        elif radio > 120 and radio < 150: #10 centavos
+            cv2.circle(tipos_monedas, (yc,xc), radio, (0,0,255), -1)  
             cant_10c += 1
-    # 6 # Escribimos referencia de colores de la clasificacion con colores
+            text = "10 C"
+        # Calculamos coordendas del ROI para el bounding box
+        x1, y1, x2, y2 = yc - radio, xc - radio, yc + radio, xc + radio
+        cv2.rectangle(identificacion, (x1, y1), (x2, y2), color=(255,0,0), thickness=3)
+        pos = (x1 + (x2-x1)//2 - 60, y1-30)
+        cv2.putText(identificacion, text, pos, cv2.FONT_HERSHEY_SIMPLEX, 2, (255,0,0), 5)
+    6 # Escribimos referencia de colores de la clasificacion con colores
     text50c = "50 Centavos"
     pos50c = (1000, 130)
     color50c = (255, 0, 0)  # Rojo
@@ -78,9 +92,9 @@ def monedas(img, informe = False, views = False):
         plt.subplot(223, sharex=ax1, sharey=ax1); imshow(mask_monedas, new_fig=False, title="Mascara binaria monedas")
         plt.subplot(224, sharex=ax1, sharey=ax1); imshow(tipos_monedas, new_fig=False, title="Clasificación de monedas")
         plt.show(block=False)
+        imshow(identificacion, title="Identificación de las monedas")
     # 9 # Retornamos la mascara binaria de las monedas
-    #HACER IMAGEN ORIGINAL CON LA IDENTIFICACION DE LAS MONEDAS(bounding box + cartel)
-    return mask_monedas
+    return mask_monedas, identificacion
 
 def dados(img, mask_monedas, informe = False, views = False):
     """Recibe una imagen de dados, segmenta los mismos, calcula e informa la cantidad
@@ -130,16 +144,20 @@ def dados(img, mask_monedas, informe = False, views = False):
     cant_dados = num_labels - 1
     numeros = []
     img_color = cv2.cvtColor(dados * 255, cv2.COLOR_GRAY2RGB)
+    identificacion = img.copy()
     for st in stats[1:]:
         # Segmentamos cada dado
         x1, y1, x2, y2 = st[1], st[0], st[1]+st[3], st[0]+st[2]
+        dado = gray_blur[x1:x2,y1:y2]
         # Detectamos circulos de cada dado en escala de grises
-        circles = cv2.HoughCircles(gray_blur[x1:x2,y1:y2],cv2.HOUGH_GRADIENT, 1, 50, param1=50, param2=50, minRadius=10, maxRadius=40)
+        circles = cv2.HoughCircles(dado,cv2.HOUGH_GRADIENT, 1, 50, param1=50, param2=50, minRadius=10, maxRadius=40)
         numero = circles.shape[1]
         numeros.append(numero)
         cv2.rectangle(img_color, (y1, x1), (y2, x2), color=(255,0,0), thickness=3)
+        cv2.rectangle(identificacion, (y1, x1), (y2, x2), color=(255,0,0), thickness=3)
         pos = (y1 + (y2-y1)//2 - 25, x1-30)
         cv2.putText(img_color, str(numero), pos, cv2.FONT_HERSHEY_SIMPLEX, 3, (255,0,0), 5)
+        cv2.putText(identificacion, str(numero), pos, cv2.FONT_HERSHEY_SIMPLEX, 3, (255,0,0), 5)
     suma = sum(numeros)
     # cv2.putText(img_color, "Resultado : " + str(suma), (1650, 130), cv2.FONT_HERSHEY_SIMPLEX, 3, (255,0,0), 5) # Opcional escribir el resultado en la imagen
     if informe:
@@ -151,16 +169,16 @@ def dados(img, mask_monedas, informe = False, views = False):
         ax1 = plt.subplot(221); imshow(img, new_fig=False, title="Imagen original")
         plt.subplot(222, sharex=ax1, sharey=ax1); imshow(gray_blur, new_fig=False, title="Imagen en escala de grises + blur")
         plt.subplot(223, sharex=ax1, sharey=ax1); imshow(mask_dados, new_fig=False, title="Mascara binaria cara superior dados")
-        plt.subplot(224, sharex=ax1, sharey=ax1); imshow(img_color, new_fig=False, title="Identificación de dados - Resultado : ", str(suma))
+        plt.subplot(224, sharex=ax1, sharey=ax1); imshow(img_color, new_fig=False, title="Identificación de dados - Resultado : " + str(suma))
         plt.show(block=False)
-    #HACER IMAGEN ORIGINAL A COLOR CON LA IDENTIFICACION DE LOS DADOS (bounding box + cartel)
-    return mask_dados
+        imshow(identificacion, title="Identificación de los dados")
+    return mask_dados, identificacion
 
 # Cargamos la imagen y la visualizamos
 img = cv2.imread('monedas.jpg')
 img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 imshow(img)
 
-mask_monedas = monedas(img, informe = True, views = True)
+mask_monedas, id_monedas = monedas(img, informe = True, views = True)
 
-mask_dados = dados(img, mask_monedas, informe = True, views = True)
+mask_dados, id_dados = dados(img, mask_monedas, informe = True, views = True)
