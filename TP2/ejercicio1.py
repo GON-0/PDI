@@ -242,3 +242,4 @@ plt.subplot(222, sharex=ax1, sharey=ax1); imshow(mascara_monedas, new_fig=False,
 plt.subplot(223, sharex=ax1, sharey=ax1); imshow(mascara_dados, new_fig=False, title="Mascara bounding box dados")
 plt.subplot(224, sharex=ax1, sharey=ax1); imshow(identificacion, new_fig=False, title="Identificacion final de monedas y dados")
 plt.show(block=False)
+
