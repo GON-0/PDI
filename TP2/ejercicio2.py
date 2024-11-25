@@ -66,6 +66,7 @@ for i in range(1,13):
 titles = []
 for i in range(1,13):
     titles.append("Auto " + str(i))
+
 # imshow(imgs[n])
 subplot12(imgs,titles)
 
@@ -79,6 +80,7 @@ for img in imgs:
 titles = []
 for i in range(1,13):
     titles.append("Escala de grises Auto " + str(i))
+
 # imshow(grays[n])
 subplot12(grays,titles)
 
@@ -142,7 +144,7 @@ subplot12(patentes2,titles)
 
 # 5 # Umbralizamos la imagen con el threshold adecuado
 
-TH1 = 145
+TH1 = 145 # Justo para detectar todos los caracteres sin que se rompan
 imgs_th = []
 
 for gray in grays_hb:
@@ -166,9 +168,15 @@ for img in imgs_th_fA:
     num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(img, connectivity, cv2.CV_32S)  
     TH1 = 18 #Justo para detectar bien todos los caracteres (con 1 mas pierdo caracteres)
     TH2 = 90 #Justo para detectar bien todos los caracteres (con 1 menos pierdo caracteres)
+    #Relacion de aspecto de los caracteres # VER SI HACER POR SEPARADO; EN 2 PASOS (mas eficiente es asi como esta)
+    RA1 = 1.3
+    RA2 = 2.4
     for i in range(num_labels):
         area = stats[i, cv2.CC_STAT_AREA]
-        if area < TH1 or area > TH2:
+        ancho = stats[i, cv2.CC_STAT_WIDTH]
+        alto = stats[i, cv2.CC_STAT_HEIGHT]
+        relAsp = alto / ancho
+        if (area < TH1 or area > TH2) or (relAsp < RA1 or relAsp > RA2):
             img[labels==i] = 0
 
 titles = []
@@ -179,9 +187,49 @@ subplot12(imgs_th_fA,titles)
 patentes = recortes(imgs_th_fA)
 subplot12(patentes,titles)
 
+# 6 # Calculamos nuevamentes las componentes conectadas y filtramos por grupos
+#  de 3 componentes cercanas horizontalmente
+imgs_th_fA_fg = [img.copy() for img in imgs_th_fA]
+for img in imgs_th_fA_fg:
+    connectivity = 8
+    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(img, connectivity, cv2.CV_32S)
+    #Ordeno stats segun la coordenada izquierda de menor a mayor
+    sorted_indices = np.argsort(stats[:, cv2.CC_STAT_LEFT])  # Índices que ordenan por la coordenada izquierda
+    stats = stats[sorted_indices]  # Ordeno stats según la coordenada izquierda
+    # labels = labels[sorted_indices]  # Ordeno las etiquetas de acuerdo con la nueva ordenación de stats
+    new_labels = np.zeros_like(labels)  # Creamos una nueva matriz de etiquetas del mismo tamaño
+    for i, idx in enumerate(sorted_indices):
+        new_labels[labels == idx] = i
+    # Defino umbral de distancia
+    dist_max_h = 13 #13 va bien, faltan 2 patentes que quedaron incompletas, INVESTIGAR POR SEPARADO EN DETALLE
+    dist_max_v = 5
+    # Lista para guardar los grupos de 3 componentes cercanos
+    indices = []
+    for i in range(num_labels - 2):  # Verificamos grupos de 3
+        i2 = i + 1
+        i3 = i + 2
+        x1 = stats[i, cv2.CC_STAT_LEFT]
+        x2 = stats[i2, cv2.CC_STAT_LEFT]
+        x3 = stats[i3, cv2.CC_STAT_LEFT]
+        y1 = stats[i, cv2.CC_STAT_TOP]
+        y2 = stats[i2, cv2.CC_STAT_TOP]
+        y3 = stats[i3, cv2.CC_STAT_TOP]
+        distH_1_2 = x2 - x1 <= dist_max_h
+        distH_2_3 = x3 - x2 <= dist_max_h
+        distV_1_2 = abs(y2 - y1) <= dist_max_v  
+        distV_2_3 = abs(y3 - y2) <= dist_max_v
+        # Verificar si las distancias entre componentes consecutivos son menores al umbral
+        if distH_1_2 and distH_2_3 and distV_1_2 and distV_2_3: #SE PUEDE AGREGAR QUE VERIFIQUE LA ALTURA EN UN UMBRAL PARA MEJORAR ESTO
+            indices += [i, i2, i3]
+        if len(indices) == 6: #Si obtengo 2 grupos de 3 componentes(caracteres) termino
+            break
+    # Elimino las componentes que no correspondan a los indices de los grupos de 3
+    for i in range(num_labels):
+        # print(i)
+        if i not in indices:
+            print(i)
+            img[new_labels==i] = 0
 
-
-ax1 = plt.subplot(121); imshow(imgs_th1[n], new_fig=False, title="")
-plt.subplot(122, sharex=ax1, sharey=ax1); imshow(imgs_th1_filtA[n], new_fig=False, title="")
-plt.show(block=False)
-
+subplot12(imgs_th_fA_fg,titles)
+patentes = recortes(imgs_th_fA_fg)
+subplot12(patentes,titles)
