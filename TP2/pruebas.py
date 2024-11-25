@@ -42,3 +42,67 @@ patentes1 = recortes(imgs_th1)
 patentes2 = recortes(imgs_th2)
 subplot12(patentes1,titles)
 subplot12(patentes2,titles2)
+
+
+
+# 9 # Dilatamos las letras para hacerlas mas gruesas
+patentes_dil = []
+for img in imgs_th_fA_fRA_fG_dil:
+    L = 5
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (L, L) )
+    img = cv2.dilate(img, kernel, iterations=1)
+    patentes_dil.append(img)
+
+
+titlesPD = []
+for i in range(1,13):
+    titlesPD.append("Patente " + str(i) + " - Dilatado con circulo radio " + str(L))
+
+patentes = recortes(patentes_dil)
+subplot12(patentes,titlesPD)
+
+# 8 # Filtrado inverso para detectar pixels negros de la imagen
+
+TH2 = 15 # Justo para detectar todos los caracteres sin que se rompan
+imgs_th_black = []
+
+for gray in grays_hb:
+    _, img_bin = cv2.threshold(gray, TH2, 1, cv2.THRESH_BINARY_INV)
+    imgs_th_black.append(img_bin)
+
+
+# 8.1 # Visualizamos el resultado
+
+titlesTHB = []
+for i in range(1,13):
+    titlesTHB.append("Auto " + str(i) + " - Threshold < " + str(TH2))
+
+subplot12(imgs_th_black,titlesTHB)
+patentes = recortes(imgs_th_black)
+subplot12(patentes,titlesTHB)
+
+
+# combinamos resultados anteriores con una union
+patentesT = []
+for i in range(len(imgs_th_black)):
+    mask1 = patentes_dil[i]
+    mask2 = imgs_th_black[i]
+    patentesT.append(cv2.bitwise_or(mask1, mask2))
+
+patentes = recortes(patentesT)
+subplot12(patentes,titlesTHB)
+
+
+
+
+
+
+
+
+
+
+connectivity = 8
+    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(img, connectivity, cv2.CV_32S)
+
+    sorted_indices = np.argsort(stats[:, cv2.CC_STAT_LEFT])  # Índices que ordenan por la coordenada izquierda
+    stats = stats[sorted_indices]
